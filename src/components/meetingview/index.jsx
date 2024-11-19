@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   useMeeting,
   useWhiteboard,
@@ -13,7 +13,6 @@ import chatIcon from '../../../public/icons/chat.svg';
 import whiteboard from '../../../public/icons/whiteboard.png';
 import bgchangeIcon from '../../../public/icons/changebg.webp';
 import copyIcon from '../../../public/icons/copy.png';
-import recordIcon from '../../../public/icons/record.png';
 
 import { Controls } from '../controls';
 import { ChatPannel } from '../chat';
@@ -21,15 +20,10 @@ import { ChatPannel } from '../chat';
 import { Whiteboard } from '../whiteboard';
 import { Participants } from '../participants';
 
-import { formatTime } from '../../utils';
-
 export const MeetingView = ({ meetingId, onMeetingLeave }) => {
   const [joined, setJoined] = useState(null);
   const [isChatOpened, setIsChatOpened] = useState(false);
   const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isRecordStarted, setIsRecordStarted] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0); // Timer in seconds
   const [isCopied, setIsCopied] = useState(false);
   const [showBgImage, setShowBgImage] = useState(false);
   const videoProcessor = new VirtualBackgroundProcessor();
@@ -37,33 +31,9 @@ export const MeetingView = ({ meetingId, onMeetingLeave }) => {
 
   const { startWhiteboard, stopWhiteboard, whiteboardUrl } = useWhiteboard();
 
-  const { join, participants, startRecording, stopRecording, changeWebcam } =
-    useMeeting({
-      onMeetingJoined: () => setJoined('JOINED'),
-      onRecordingStarted: () => setIsRecording(true),
-      onRecordingStopped: () => {
-        setIsRecording(false);
-        setRecordingTime(0); // Reset timer
-      },
-    });
-
-  //record time logic
-  useEffect(() => {
-    let timer;
-    if (isRecording) {
-      timer = setInterval(() => {
-        setRecordingTime((prevTime) => prevTime + 1);
-      }, 1000);
-    } else {
-      clearInterval(timer);
-    }
-    return () => clearInterval(timer);
-  }, [isRecording]);
-
-  const joinMeeting = () => {
-    setJoined('JOINING');
-    join();
-  };
+  const { join, participants, changeWebcam } = useMeeting({
+    onMeetingJoined: () => setJoined('JOINED'),
+  });
 
   const handleCopy = () => {
     setTimeout(() => {
@@ -80,28 +50,6 @@ export const MeetingView = ({ meetingId, onMeetingLeave }) => {
       stopWhiteboard();
     }
     setIsWhiteboardOpen(!isWhiteboardOpen);
-  };
-
-  const handleRecording = () => {
-    const webhookUrl = null;
-    const awsDirPath = null;
-    const config = {
-      layout: {
-        type: 'GRID',
-        priority: 'SPEAKER',
-        gridSize: 2,
-      },
-      theme: 'DARK',
-      mode: 'video-and-audio',
-      quality: 'high',
-      orientation: 'landscape',
-    };
-
-    if (!isRecording) {
-      startRecording(webhookUrl, awsDirPath, config);
-    }
-    stopRecording();
-    setIsRecordStarted(!isRecordStarted);
   };
 
   const addVideoBg = async (imgIndex) => {
@@ -126,6 +74,11 @@ export const MeetingView = ({ meetingId, onMeetingLeave }) => {
     const stream = await createCameraVideoTrack({});
     changeWebcam(stream);
     setShowBgImage(!showBgImage);
+  };
+
+  const joinMeeting = () => {
+    setJoined('JOINING');
+    join();
   };
 
   return (
@@ -205,22 +158,6 @@ export const MeetingView = ({ meetingId, onMeetingLeave }) => {
                       width={30}
                       className="filter grayscale brightness-0"
                     />
-                  </ButtonIcon>
-                  <ButtonIcon
-                    onClick={() => handleRecording()}
-                    style={{
-                      '--recording-time': `"${formatTime(recordingTime)}"`,
-                    }}
-                    className={`relative py-4 px-6 rounded-md 
-                      ${isRecording ? 'bg-white after:content-[var(--recording-time)]' : 'bg-gray-500'} 
-                      ${isRecordStarted ? 'after:absolute after:content-["starting..."]' : 'after:hidden'}
-                      after:right-0 after:-top-[110%] after:rounded-md after:w-[160%] after:h-full after:bg-white after:flex after:items-center after:justify-center`}
-                  >
-                    {isRecording ? (
-                      <div className="text-blue-500">stop</div>
-                    ) : (
-                      <img src={recordIcon} alt="record" width={30} />
-                    )}
                   </ButtonIcon>
                 </div>
               </div>
