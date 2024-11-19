@@ -8,7 +8,6 @@ export const JoinScreen = ({ getMeetingId, name, setName }) => {
   const handleStartMeeting = async () => {
     if (name.length >= 2) {
       await getMeetingId(meetingId); // Proceed with meeting creation/joining
-      console.log(name);
     }
   };
 
