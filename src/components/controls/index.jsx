@@ -7,7 +7,23 @@ import audioIcon from '../../../public/icons/microphone.png';
 import videoIcon from '../../../public/icons/videocam.png';
 
 export const Controls = ({ onMeetingLeave }) => {
-  const { toggleMic, toggleWebcam, end } = useMeeting();
+  const { toggleMic, toggleWebcam, end, startHls, stopHls, hlsState } =
+    useMeeting({
+      onHlsStateChanged: (status) => {
+        console.log('current status(changed) : ', status.status);
+      },
+      onHlsStopped: () => {
+        console.log('hls stopped ...');
+      },
+      onHlsStarted: () => {
+        console.log('hls started ...');
+      },
+      onError: (err) => {
+        console.log('err: ', err);
+      },
+    });
+
+  console.log();
   const [micClicked, setMicClicked] = useState(false);
   const [webcamClicked, setWebcamClicked] = useState(false);
 
@@ -46,6 +62,35 @@ export const Controls = ({ onMeetingLeave }) => {
         {webcamClicked && (
           <div className="absolute top-[2px] left-[2px] w-full h-[2px] bg-blue-500 rotate-45 origin-top-left"></div>
         )}
+      </div>
+      <div className="relative">
+        <div className="flex gap-2">
+          <ButtonIcon
+            className="bg-black text-white py-4 px-2 rounded-lg"
+            onClick={() => {
+              startHls({
+                layout: {
+                  type: 'SPOTLIGHT',
+                  priority: 'PIN',
+                  gridSize: '20',
+                },
+                theme: 'LIGHT',
+                mode: 'video-and-audio',
+                quality: 'med',
+                orientation: 'landscape',
+              });
+              console.log('still hlsState is : ', hlsState);
+            }}
+          >
+            startHLS
+          </ButtonIcon>
+          <ButtonIcon
+            className="bg-black text-white py-4 px-2 rounded-lg"
+            onClick={() => stopHls()}
+          >
+            stopHLS
+          </ButtonIcon>
+        </div>
       </div>
     </div>
   );

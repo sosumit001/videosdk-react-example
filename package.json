@@ -13,6 +13,7 @@
   "dependencies": {
     "@videosdk.live/react-sdk": "^0.1.103",
     "@videosdk.live/videosdk-media-processor-web": "^0.0.16",
+    "hls.js": "^1.5.17",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

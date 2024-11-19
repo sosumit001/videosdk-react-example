@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import Button from '../../@ui/button';
 
-export const JoinScreen = ({ getMeetingId, name, setName }) => {
+export const JoinScreen = ({ getMeetingId, name, setName, setMode }) => {
   const [step, setStep] = useState(1); // Step 1: Meeting ID, Step 2: Enter Name
   const [meetingId, setMeetingId] = useState(null);
 
   const handleStartMeeting = async () => {
     if (name.length >= 2) {
       await getMeetingId(meetingId); // Proceed with meeting creation/joining
-      console.log(name);
     }
   };
 
@@ -21,7 +20,7 @@ export const JoinScreen = ({ getMeetingId, name, setName }) => {
         }`}
       >
         <div className="flex flex-col justify-center items-center gap-4 mb-4 h-full w-full">
-          <div className="flex gap-4 w-1/4 min-w-[250px]">
+          <div className="flex flex-col gap-4 w-1/2 min-w-[350px]">
             <input
               type="text"
               placeholder="Enter Meeting ID"
@@ -29,12 +28,26 @@ export const JoinScreen = ({ getMeetingId, name, setName }) => {
               className="w-full h-12 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Meeting ID"
             />
-            <Button
-              onClick={() => setStep(2)}
-              text="Next"
-              className="h-12"
-              disabled={!meetingId} // Disable the button if meetingId is empty
-            />
+            <div className="flex justify-around">
+              <Button
+                onClick={() => {
+                  setMode('CONFERENCE');
+                  setStep(2);
+                }}
+                text="Join as HOST"
+                className="h-12 w-[45%]"
+                disabled={!meetingId} // Disable the button if meetingId is empty
+              />
+              <Button
+                onClick={() => {
+                  setMode('VIEWER');
+                  setStep(2);
+                }}
+                text="Join as VIEWVER"
+                className="h-12 w-[45%]"
+                disabled={!meetingId} // Disable the button if meetingId is empty
+              />
+            </div>
           </div>
           <div className="flex flex-col items-center gap-4 w-1/4 min-w-[250px]">
             <span className="mx-4 text-white">or</span>

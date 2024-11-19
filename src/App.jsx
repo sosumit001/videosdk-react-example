@@ -9,6 +9,7 @@ import { authToken, createMeeting } from './API';
 function App() {
   const [meetingId, setMeetingId] = useState(null);
   const [participantName, setParticipantName] = useState('');
+  const [mode, setMode] = useState('CONFERENCE');
 
   const getMeetingId = async (id) => {
     const meetingId =
@@ -30,6 +31,7 @@ function App() {
             meetingId,
             micEnabled: true,
             webcamEnabled: true,
+            mode: mode,
           }}
         >
           <MeetingView meetingId={meetingId} onMeetingLeave={onMeetingLeave} />
@@ -39,6 +41,7 @@ function App() {
           getMeetingId={getMeetingId}
           name={participantName}
           setName={setParticipantName}
+          setMode={setMode}
         />
       )}
     </Container>

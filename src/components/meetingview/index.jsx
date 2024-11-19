@@ -1,64 +1,38 @@
-import { useEffect, useState } from 'react';
-import {
-  useMeeting,
-  useWhiteboard,
-  createCameraVideoTrack,
-} from '@videosdk.live/react-sdk';
-import { VirtualBackgroundProcessor } from '@videosdk.live/videosdk-media-processor-web';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { Constants, useMeeting } from '@videosdk.live/react-sdk';
+import Hls from 'hls.js';
 
 import Button from '../../@ui/button';
 import { ButtonIcon } from '../../@ui/button-icon';
+import { Participant } from '../participant';
 
-import chatIcon from '../../../public/icons/chat.svg';
-import whiteboard from '../../../public/icons/whiteboard.png';
-import bgchangeIcon from '../../../public/icons/changebg.webp';
 import copyIcon from '../../../public/icons/copy.png';
-import recordIcon from '../../../public/icons/record.png';
+import groupIcon from '../../../public/icons/group.png';
+
+import mic from '../../../public/icons/microphone.png';
+import no_mic from '../../../public/icons/no-microphone.png';
+
+import cam from '../../../public/icons/videocam.png';
+import no_cam from '../../../public/icons/no-videocam.png';
 
 import { Controls } from '../controls';
-import { ChatPannel } from '../chat';
-
-import { Whiteboard } from '../whiteboard';
-import { Participants } from '../participants';
-
-import { formatTime } from '../../utils';
 
 export const MeetingView = ({ meetingId, onMeetingLeave }) => {
   const [joined, setJoined] = useState(null);
-  const [isChatOpened, setIsChatOpened] = useState(false);
-  const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isRecordStarted, setIsRecordStarted] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0); // Timer in seconds
   const [isCopied, setIsCopied] = useState(false);
-  const [showBgImage, setShowBgImage] = useState(false);
-  const videoProcessor = new VirtualBackgroundProcessor();
-  const imageOptions = ['san-fran', 'paper-wall', 'beach'];
 
-  const { startWhiteboard, stopWhiteboard, whiteboardUrl } = useWhiteboard();
+  const [isParticipantListOpened, setIsParticipantlistOpened] = useState(false);
 
-  const { join, participants, startRecording, stopRecording, changeWebcam } =
-    useMeeting({
-      onMeetingJoined: () => setJoined('JOINED'),
-      onRecordingStarted: () => setIsRecording(true),
-      onRecordingStopped: () => {
-        setIsRecording(false);
-        setRecordingTime(0); // Reset timer
-      },
-    });
+  const { join, participants } = useMeeting();
 
-  //record time logic
-  useEffect(() => {
-    let timer;
-    if (isRecording) {
-      timer = setInterval(() => {
-        setRecordingTime((prevTime) => prevTime + 1);
-      }, 1000);
-    } else {
-      clearInterval(timer);
-    }
-    return () => clearInterval(timer);
-  }, [isRecording]);
+  const mMeeting = useMeeting({
+    onMeetingJoined: () => setJoined('JOINED'),
+    onRecordingStarted: () => setIsRecording(true),
+    onRecordingStopped: () => {
+      setIsRecording(false);
+      setRecordingTime(0); // Reset timer
+    },
+  });
 
   const joinMeeting = () => {
     setJoined('JOINING');
@@ -71,61 +45,6 @@ export const MeetingView = ({ meetingId, onMeetingLeave }) => {
     }, 3000);
     navigator.clipboard.writeText(meetingId);
     setIsCopied(true);
-  };
-
-  const handleWhiteBoard = () => {
-    if (!isWhiteboardOpen) {
-      startWhiteboard();
-    } else {
-      stopWhiteboard();
-    }
-    setIsWhiteboardOpen(!isWhiteboardOpen);
-  };
-
-  const handleRecording = () => {
-    const webhookUrl = null;
-    const awsDirPath = null;
-    const config = {
-      layout: {
-        type: 'GRID',
-        priority: 'SPEAKER',
-        gridSize: 2,
-      },
-      theme: 'DARK',
-      mode: 'video-and-audio',
-      quality: 'high',
-      orientation: 'landscape',
-    };
-
-    if (!isRecording) {
-      startRecording(webhookUrl, awsDirPath, config);
-    }
-    stopRecording();
-    setIsRecordStarted(!isRecordStarted);
-  };
-
-  const addVideoBg = async (imgIndex) => {
-    if (!videoProcessor.ready) {
-      await videoProcessor.init();
-    }
-
-    const imageUrl = `https://cdn.videosdk.live/virtual-background/${imageOptions[imgIndex]}.jpeg`;
-
-    const config = {
-      type: 'image', // "blur"
-      imageUrl,
-    };
-    const stream = await createCameraVideoTrack({});
-    const processedStream = await videoProcessor.start(stream, config);
-    changeWebcam(processedStream);
-    setShowBgImage(!showBgImage);
-  };
-
-  const removeVideoBg = async () => {
-    videoProcessor.stop();
-    const stream = await createCameraVideoTrack({});
-    changeWebcam(stream);
-    setShowBgImage(!showBgImage);
   };
 
   return (
@@ -145,98 +64,38 @@ export const MeetingView = ({ meetingId, onMeetingLeave }) => {
       <div className="h-full flex items-center justify-center">
         {joined === 'JOINED' ? (
           <div className="relative w-full h-full py-y bg-slate-900">
+            {mMeeting.localParticipant.mode == Constants.modes.CONFERENCE ? (
+              <SpeakerView />
+            ) : (
+              <ViewerView />
+            )}
+
+            {/* participants */}
+            <div
+              className={`${isParticipantListOpened ? 'block' : 'hidden'} fixed right-0 top-0 bg-[whitesmoke] h-full w-1/3 min-w-[350px]`}
+            >
+              {participants && <ParticipantList participants={participants} />}
+            </div>
+
             {/* controls */}
             <div className="flex justify-between w-[96%] left-[2%] py-4 bottom-0 items-center z-20 absolute rounded-lg shadow-lg">
-              {/* handle backgroundChange, whiteboard & chat */}
-              <div className="flex items-center gap-2 h-full">
-                {showBgImage && (
-                  <div className="absolute w-[200px] right-12 bottom-full bg-white text-black rounded-lg shadow-lg p-2 text-sm whitespace-pre">
-                    <div
-                      className="py-4 cursor-pointer hover:bg-slate-50"
-                      onClick={() => removeVideoBg()}
-                    >
-                      none
-                    </div>
-                    {imageOptions.map((item, index) => (
-                      <div
-                        key={index}
-                        className="py-4 cursor-pointer hover:bg-slate-50"
-                        onClick={() => addVideoBg(index)}
-                      >
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
               <div className="flex justify-between w-full items-center gap-4">
                 {/* audio/video controls */}
-                <Controls onMeetingLeave={onMeetingLeave} />
+                {mMeeting.localParticipant.mode ===
+                  Constants.modes.CONFERENCE && <Controls />}
 
-                {/* handle bgChange, whiteboard & chatPannel */}
-                <div className="flex gap-4">
-                  <ButtonIcon
-                    onClick={() => setShowBgImage(!showBgImage)}
-                    className="bg-white p-4 rounded-md"
-                  >
-                    <img src={bgchangeIcon} width={30} alt="background" />
-                  </ButtonIcon>
-
-                  <ButtonIcon
-                    onClick={() => handleWhiteBoard()}
-                    className="bg-white p-4 rounded-md"
-                  >
-                    <img
-                      src={whiteboard}
-                      alt="whiteboard"
-                      width={30}
-                      className="filter grayscale brightness-0"
-                    />
-                  </ButtonIcon>
-
-                  <ButtonIcon
-                    onClick={() => setIsChatOpened(!isChatOpened)}
-                    className="bg-white p-4 rounded-md"
-                  >
-                    <img
-                      src={chatIcon}
-                      alt="chat-icon"
-                      width={30}
-                      className="filter grayscale brightness-0"
-                    />
-                  </ButtonIcon>
-                  <ButtonIcon
-                    onClick={() => handleRecording()}
-                    style={{
-                      '--recording-time': `"${formatTime(recordingTime)}"`,
-                    }}
-                    className={`relative py-4 px-6 rounded-md 
-                      ${isRecording ? 'bg-white after:content-[var(--recording-time)]' : 'bg-gray-500'} 
-                      ${isRecordStarted ? 'after:absolute after:content-["starting..."]' : 'after:hidden'}
-                      after:right-0 after:-top-[110%] after:rounded-md after:w-[160%] after:h-full after:bg-white after:flex after:items-center after:justify-center`}
-                  >
-                    {isRecording ? (
-                      <div className="text-blue-500">stop</div>
-                    ) : (
-                      <img src={recordIcon} alt="record" width={30} />
-                    )}
-                  </ButtonIcon>
-                </div>
+                {/* participant list control */}
+                <ButtonIcon
+                  className="bg-white p-4 rounded-md"
+                  onClick={() => setIsParticipantlistOpened((prev) => !prev)}
+                >
+                  <img src={groupIcon} alt="group icon" width={30} />
+                </ButtonIcon>
               </div>
             </div>
 
             {/* participants, chatPannel & whiteboard */}
-            <Participants participants={participants} />
-            <Whiteboard
-              isWhiteboardOpen={isWhiteboardOpen}
-              whiteboardUrl={whiteboardUrl}
-              handleWhiteBoard={handleWhiteBoard}
-            />
-            <ChatPannel
-              isChatOpened={isChatOpened}
-              setIsChatOpened={setIsChatOpened}
-            />
+            {/* <Participants participants={participants} /> */}
           </div>
         ) : joined === 'JOINING' ? (
           <Button
@@ -254,6 +113,137 @@ export const MeetingView = ({ meetingId, onMeetingLeave }) => {
           />
         )}
       </div>
+    </>
+  );
+};
+
+const SpeakerView = () => {
+  const { participants } = useMeeting();
+
+  const speakers = useMemo(() => {
+    const speakerParticipants = [...participants.values()].filter(
+      (participant) => {
+        return participant.mode == Constants.modes.CONFERENCE;
+      }
+    );
+    return speakerParticipants;
+  }, [participants]);
+
+  const viewvers = useMemo(() => {
+    const viewverParticipants = [...participants.values()].filter(
+      (participant) => {
+        return participant.mode == Constants.modes.VIEWER;
+      }
+    );
+    return viewverParticipants;
+  }, [participants]);
+
+  // console.log('speakers : ', speakers);
+  // console.log('viewers : ', viewvers);
+
+  return (
+    <div>
+      {speakers.map((participant) => (
+        <Participant participantId={participant.id} key={participant.id} />
+      ))}
+    </div>
+  );
+};
+
+const ViewerView = () => {
+  const playerRef = useRef(null);
+  //Getting the hlsUrls
+  const { hlsUrls, hlsState } = useMeeting();
+
+  console.log('current hlsState : ', hlsState);
+
+  //Playing the HLS stream when the playbackHlsUrl is present and it is playable
+  useEffect(() => {
+    if (hlsUrls.playbackHlsUrl && hlsState == 'HLS_PLAYABLE') {
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          maxLoadingDelay: 1, // max video loading delay used in automatic start level selection
+          defaultAudioCodec: 'mp4a.40.2', // default audio codec
+          maxBufferLength: 0, // If buffer length is/becomes less than this value, a new fragment will be loaded
+          maxMaxBufferLength: 1, // Hls.js will never exceed this value
+          startLevel: 0, // Start playback at the lowest quality level
+          startPosition: -1, // set -1 playback will start from intialtime = 0
+          maxBufferHole: 0.001, // 'Maximum' inter-fragment buffer hole tolerance that hls.js can cope with when searching for the next fragment to load.
+          highBufferWatchdogPeriod: 0, // if media element is expected to play and if currentTime has not moved for more than highBufferWatchdogPeriod and if there are more than maxBufferHole seconds buffered upfront, hls.js will jump buffer gaps, or try to nudge playhead to recover playback.
+          nudgeOffset: 0.05, // In case playback continues to stall after first playhead nudging, currentTime will be nudged evenmore following nudgeOffset to try to restore playback. media.currentTime += (nb nudge retry -1)*nudgeOffset
+          nudgeMaxRetry: 1, // Max nb of nudge retries before hls.js raise a fatal BUFFER_STALLED_ERROR
+          maxFragLookUpTolerance: 0.1, // This tolerance factor is used during fragment lookup.
+          liveSyncDurationCount: 1, // if set to 3, playback will start from fragment N-3, N being the last fragment of the live playlist
+          abrEwmaFastLive: 1, // Fast bitrate Exponential moving average half-life, used to compute average bitrate for Live streams.
+          abrEwmaSlowLive: 3, // Slow bitrate Exponential moving average half-life, used to compute average bitrate for Live streams.
+          abrEwmaFastVoD: 1, // Fast bitrate Exponential moving average half-life, used to compute average bitrate for VoD streams
+          abrEwmaSlowVoD: 3, // Slow bitrate Exponential moving average half-life, used to compute average bitrate for VoD streams
+          maxStarvationDelay: 1, // ABR algorithm will always try to choose a quality level that should avoid rebuffering
+        });
+
+        let player = document.querySelector('#hlsPlayer');
+
+        hls.loadSource(hlsUrls.playbackHlsUrl);
+        hls.attachMedia(player);
+      } else {
+        if (typeof playerRef.current?.play === 'function') {
+          playerRef.current.src = hlsUrls.playbackHlsUrl;
+          playerRef.current.play();
+        }
+      }
+    }
+  }, [hlsUrls, hlsState, playerRef.current]);
+
+  return (
+    <div>
+      {/* Showing message if HLS is not started or is stopped by HOST */}
+      {hlsState != 'HLS_PLAYABLE' ? (
+        <div className="bg-white w-1/2 min-w-[300] py-4 px-4 rounded-md mx-auto mt-16">
+          <p>HLS has not started yet or is stopped</p>
+        </div>
+      ) : (
+        hlsState == 'HLS_PLAYABLE' && (
+          <div>
+            <video
+              ref={playerRef}
+              id="hlsPlayer"
+              autoPlay={true}
+              controls
+              style={{ width: '100%', height: '100%' }}
+              playsinline
+              playsInline
+              muted={true}
+              playing
+              onError={(err) => {
+                console.log(err, 'hls video error');
+              }}
+            ></video>
+          </div>
+        )
+      )}
+    </div>
+  );
+};
+
+const ParticipantList = ({ participants }) => {
+  return (
+    <>
+      {[...participants.values()].map((p, index) => (
+        <div
+          key={index}
+          className="flex items-center mx-auto bg-slate-200 text-gray-800 py-4 px-2 mt-4 rounded-md w-[95%]"
+        >
+          <div className="flex-grow min-w-[200px] px-4">{p.displayName}</div>
+          <div className="flex gap-4">
+            <ButtonIcon className="bg-white p-4 rounded-md">
+              <img src={p.micOn ? mic : no_mic} alt="microphone" width={25} />
+            </ButtonIcon>
+            <ButtonIcon className="bg-white p-4 rounded-md">
+              <img src={p.webcamOn ? cam : no_cam} alt="videocam" width={25} />
+            </ButtonIcon>
+          </div>
+        </div>
+      ))}
     </>
   );
 };
